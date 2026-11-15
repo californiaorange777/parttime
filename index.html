@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>パート勤務表</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap">
+<style>body{margin:0;padding:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<style id="app-css">
+/* Layout: 帳面のような勤務表。上に月と切り替え、真ん中に横に動かせる表、下に保存バー */
+:root{
+  --bg:#F2F5F6; --surface:#FFFFFF; --ink:#1B2730; --muted:#5A6A73; --line:#D5DEE2;
+  --accent:#1E6670; --accent-ink:#FFFFFF; --accent-soft:#DCEEEF;
+  --sat:#2B5BA8; --sun:#C2362B;
+  --wish:#9A520F; --wish-soft:#FBEAD5;
+  --bad:#BE3328; --bad-soft:#FBE1DD; --ok:#2A764A; --ok-soft:#DFF1E6;
+  --work-soft:#E1EFF0; --shade:rgba(10,22,28,.45); --shadow:0 10px 30px rgba(16,40,48,.18);
+  --font:"BIZ UDPGothic","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10171B; --surface:#192227; --ink:#E5EDF0; --muted:#9AAAB3; --line:#2D3A41;
+    --accent:#62B8C1; --accent-ink:#0D191C; --accent-soft:#1C3538;
+    --sat:#86AAE9; --sun:#F0897F; --wish:#E9A866; --wish-soft:#3A2A19;
+    --bad:#F0897F; --bad-soft:#3E2220; --ok:#7DCB99; --ok-soft:#1B3325;
+    --work-soft:#1D3236; --shade:rgba(0,0,0,.6); --shadow:0 10px 30px rgba(0,0,0,.5); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10171B; --surface:#192227; --ink:#E5EDF0; --muted:#9AAAB3; --line:#2D3A41;
+  --accent:#62B8C1; --accent-ink:#0D191C; --accent-soft:#1C3538;
+  --sat:#86AAE9; --sun:#F0897F; --wish:#E9A866; --wish-soft:#3A2A19;
+  --bad:#F0897F; --bad-soft:#3E2220; --ok:#7DCB99; --ok-soft:#1B3325;
+  --work-soft:#1D3236; --shade:rgba(0,0,0,.6); --shadow:0 10px 30px rgba(0,0,0,.5); color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.55;-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:default}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 128px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;background:var(--bg);padding-block:12px 12px;display:grid;gap:10px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand h1{margin:0;font-size:.95rem;letter-spacing:.12em;color:var(--accent);font-weight:700}
+.pill{font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--line);color:var(--muted);white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--wish-soft);color:var(--wish)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+label.btn{display:inline-flex;align-items:center;cursor:pointer}
+.vh{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.month{display:flex;align-items:center;justify-content:center;gap:14px}
+.month h2{margin:0;font-size:clamp(1.35rem,4.5vw,1.7rem);font-variant-numeric:tabular-nums;min-width:8.5em;text-align:center;text-wrap:balance}
+.icon-btn{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:24px;line-height:1;font-weight:700}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px}
+.tabs button{border:0;background:transparent;color:var(--muted);font-weight:700;padding:9px 0;border-radius:9px}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.view{display:grid;gap:14px;padding-top:14px;min-width:0}
+.notice{background:var(--accent-soft);border-radius:12px;padding:12px 14px;display:grid;gap:10px}
+.notice p{margin:0}
+.notice.bad{background:var(--bad-soft)}
+.notice.plain{background:var(--surface);border:1px solid var(--line)}
+.notice a{color:var(--accent);font-weight:700;margin-left:6px;white-space:nowrap}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-size:13px;font-weight:700;padding:4px 12px;border-radius:999px;background:var(--ok-soft);color:var(--ok)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.chip.warn{background:var(--wish-soft);color:var(--wish)}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row.end{justify-content:flex-end}
+.btn{min-height:44px;padding:0 18px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:700}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{background:var(--bad);border-color:var(--bad);color:var(--surface)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--bad);min-height:36px;padding:0 6px}
+.hint{margin:0;color:var(--muted);font-size:13px}
+.confirm{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;background:var(--wish-soft);border-radius:12px;padding:8px 12px}
+.empty{padding:28px 16px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:12px}
+
+/* 予定表 */
+.grid-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;-webkit-overflow-scrolling:touch}
+table.grid{border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums;min-width:100%}
+.grid th,.grid td{padding:0;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:center}
+.grid tbody tr:last-child th,.grid tbody tr:last-child td{border-bottom:2px solid var(--line)}
+.grid tfoot th,.grid tfoot td{border-bottom:0}
+.grid th.day{width:46px;min-width:46px;padding:6px 0 5px;font-size:11.5px;color:var(--muted);font-weight:400}
+.grid th.day b{display:block;font-size:15px;color:var(--ink)}
+.grid th.day.sat b,.grid th.day.sat span{color:var(--sat)}
+.grid th.day.sun b,.grid th.day.sun span{color:var(--sun)}
+.grid th.day.today-col{background:var(--accent-soft)}
+.grid th.name{position:sticky;left:0;z-index:2;background:var(--surface);text-align:left;padding:6px 10px;min-width:98px;max-width:124px;border-right:2px solid var(--line)}
+.grid th.name .nm{display:block;font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grid th.name .sum{display:block;font-size:11px;color:var(--muted);font-weight:400;white-space:nowrap}
+.grid th.name em{font-style:normal;color:var(--bad);font-weight:700}
+.grid th.corner{font-size:12px;color:var(--muted)}
+.cell button{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:48px;border:0;background:transparent;color:var(--muted);font-size:11.5px;line-height:1.2;padding:0;opacity:.75}
+.cell.w button{background:var(--work-soft);color:var(--ink);font-weight:700;opacity:1}
+.cell.wish button{background:var(--wish-soft);color:var(--wish);font-weight:700;opacity:1}
+.cell.clash button{background:var(--bad-soft);color:var(--bad);font-weight:700;opacity:1}
+.cell button:not(:disabled):hover{filter:brightness(.96)}
+.grid td.cnt{font-size:12px;font-weight:700;padding:7px 0;color:var(--ok)}
+.grid td.cnt.short{background:var(--bad-soft);color:var(--bad)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12.5px;color:var(--muted)}
+.sw{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:6px;border:1px solid var(--line)}
+.sw.w{background:var(--work-soft)} .sw.wish{background:var(--wish-soft)} .sw.clash{background:var(--bad-soft)} .sw.short{background:var(--bad);border-color:var(--bad)}
+
+/* 日ごと */
+.days{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.days li{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.days li.short{border-color:var(--bad)}
+.days li.today{box-shadow:0 0 0 2px var(--accent)}
+.dnum{display:grid;justify-items:center;line-height:1.1}
+.dnum b{font-size:21px;font-variant-numeric:tabular-nums}
+.dnum span{font-size:12px;color:var(--muted)}
+.dnum.sat b,.dnum.sat span{color:var(--sat)} .dnum.sun b,.dnum.sun span{color:var(--sun)}
+.ppl{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.person{background:var(--work-soft);border-radius:8px;padding:3px 9px;font-size:14px;font-weight:700}
+.person small{font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
+.person.clash{background:var(--bad-soft);color:var(--bad)}
+.none{color:var(--bad);font-size:13px;font-weight:700}
+.wishline{flex-basis:100%;font-size:12px;color:var(--wish)}
+.cntb{font-weight:700;font-size:13px;padding:4px 10px;border-radius:999px;background:var(--ok-soft);color:var(--ok);font-variant-numeric:tabular-nums;white-space:nowrap}
+.days li.short .cntb{background:var(--bad-soft);color:var(--bad)}
+
+/* 設定 */
+.sec{display:grid;gap:10px}
+.sec h3{margin:8px 0 0;font-size:1.05rem}
+.staff-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:14px;min-width:0}
+.fld{display:grid;gap:6px;min-width:0}
+.lbl{font-size:12.5px;color:var(--muted);font-weight:700;letter-spacing:.04em}
+input[type="text"],input[type="number"],select{min-height:42px;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:0 10px}
+input[type="number"]{width:96px}
+.name-in{font-size:17px;font-weight:700;width:100%}
+.times{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.wds{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.wds button{min-height:40px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--muted);font-weight:700}
+.wds button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.mini{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.mini .h{font-size:11px;text-align:center;color:var(--muted)}
+.mini .h.sat{color:var(--sat)} .mini .h.sun{color:var(--sun)}
+.mini button{min-height:34px;border:1px solid transparent;border-radius:6px;background:var(--bg);font-size:13px;font-variant-numeric:tabular-nums}
+.mini button[aria-pressed="true"]{background:var(--wish-soft);border-color:var(--wish);color:var(--wish);font-weight:700}
+.card-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px}
+.steps{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:8px}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 6px;display:grid;gap:6px;justify-items:center}
+.step .lbl.sat{color:var(--sat)} .step .lbl.sun{color:var(--sun)}
+.stepctl{display:flex;align-items:center;gap:10px}
+.stepctl button{width:38px;height:38px;border-radius:8px;border:1px solid var(--line);background:var(--bg);font-size:18px;font-weight:700}
+.stepctl b{min-width:2ch;text-align:center;font-size:18px;font-variant-numeric:tabular-nums}
+
+/* 変更の画面と保存バー */
+.back{position:fixed;inset:0;background:var(--shade);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:480px;border-radius:18px 18px 0 0;box-shadow:var(--shadow);display:grid;gap:14px;padding:18px max(18px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px))}
+.sheet h3{margin:0;display:grid;gap:2px;font-size:1.2rem}
+.sheet h3 span{font-size:.85rem;color:var(--muted);font-weight:400}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.seg button{min-height:46px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-weight:700;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.check{display:flex;gap:10px;align-items:center;min-height:42px;font-weight:700}
+.check input{width:22px;height:22px;accent-color:var(--wish)}
+.warns{display:grid;gap:4px;background:var(--bad-soft);border-radius:10px;padding:10px 12px}
+.warns p{margin:0;color:var(--bad);font-size:13.5px;font-weight:700}
+@media (min-width:700px){.back{align-items:center}.sheet{border-radius:18px}}
+.savebar{position:fixed;left:0;right:0;bottom:0;z-index:15;background:var(--surface);border-top:1px solid var(--line);box-shadow:var(--shadow);padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.savebar .in{max-width:1180px;margin:0 auto;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.savebar p{margin:0;font-weight:700}
+.toast{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:30;background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:999px;font-size:13px;font-weight:700;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(16px);opacity:.6}to{transform:none;opacity:1}}}
+</style>
+<div id="app"></div>
+<script type="application/json" id="shift-data">{"v":1,"sample":true,"updatedAt":"2026-11-13T00:00:00.000Z","staff":[{"id":"s1","name":"Aさん","days":[true,true,true,true,true,true,true],"start":"09:00","end":"17:00","maxHours":null},{"id":"s2","name":"Bさん","days":[true,true,true,true,true,true,true],"start":"09:00","end":"17:00","maxHours":null},{"id":"s3","name":"Cさん","days":[true,true,true,true,true,true,true],"start":"09:00","end":"17:00","maxHours":null},{"id":"s4","name":"Dさん","days":[true,true,true,true,true,true,true],"start":"09:00","end":"17:00","maxHours":null},{"id":"s5","name":"Eさん","days":[true,true,true,true,true,true,true],"start":"09:00","end":"17:00","maxHours":null}],"settings":{"need":[2,2,2,2,2,2,2],"maxRun":5},"months":{}}</script>
+<script id="app-js">
+(function(){
+'use strict';
+var TITLE = 'パート勤務表';
+var HEAD_LINKS = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap">';
+var FALLBACK_RESET = ':root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}';
+var WD = ['日','月','火','水','木','金','土'];
+var PENDING_KEY = 'shift-pending', YM_KEY = 'shift-ym', TAB_KEY = 'shift-tab';
+/* claude.ai の外（GitHub など）で開いたときは、この端末の中に自動で保存して使う */
+var LOCAL = !(window.claude && typeof window.claude.use === 'function');
+var LOCAL_KEY = 'parttime-data-v1', BACKUP_KEY = 'parttime-last-backup';
+var localOk = true, impData = null;
+
+var $app = document.getElementById('app');
+var CSS_EL = document.getElementById('app-css');
+var JS_EL = document.getElementById('app-js');
+var DATA_EL = document.getElementById('shift-data');
+
+var clone = function(o){ return JSON.parse(JSON.stringify(o)); };
+var esc = function(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
+var pad = function(n){ return String(n).padStart(2,'0'); };
+var clamp = function(v,a,b){ return Math.max(a, Math.min(b, v)); };
+function sGet(store, k){ try { return window[store].getItem(k); } catch(e){ return null; } }
+function sSet(store, k, v){ try { window[store].setItem(k, v); } catch(e){} }
+function sDel(store, k){ try { window[store].removeItem(k); } catch(e){} }
+/* 読み込んだデータが正しい形かを確かめる */
+function okData(o){
+  if (!o || typeof o !== 'object' || !Array.isArray(o.staff) || !o.settings || !Array.isArray(o.settings.need) || o.settings.need.length !== 7) return false;
+  var tm = /^\d{2}:\d{2}$/;
+  return o.staff.every(function(s){ return s && typeof s.id === 'string' && typeof s.name === 'string' && Array.isArray(s.days) && s.days.length === 7 && tm.test(s.start) && tm.test(s.end); });
+}
+function normData(o){
+  if (!o.months || typeof o.months !== 'object') o.months = {};
+  Object.keys(o.months).forEach(function(k){
+    var m = o.months[k];
+    if (!m || typeof m !== 'object') { delete o.months[k]; return; }
+    if (!m.work || typeof m.work !== 'object') m.work = {};
+    if (!m.wish || typeof m.wish !== 'object') m.wish = {};
+  });
+  if (typeof o.settings.maxRun !== 'number') o.settings.maxRun = 5;
+  return o;
+}
+
+/* ---- データ ---- */
+var saved = null;
+try { saved = JSON.parse(DATA_EL.textContent); } catch(e){}
+if (LOCAL) { try { var l0 = JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null'); if (okData(l0)) saved = l0; } catch(e){} }
+if (!okData(saved)) saved = {v:1,sample:false,updatedAt:'',staff:[],settings:{need:[2,2,2,2,2,2,2],maxRun:5},months:{}};
+normData(saved);
+var state = clone(saved);
+var dirty = false, saving = false;
+var cap = 'loading';            // loading | edit | view
+var art = null, viewWhy = '';  // viewWhy: outside（claude.ai の外で開いた）| perm（見るだけの権限）
+var sheet = null, confirmAuto = false, confirmDel = null, pending = null, justSaved = false;
+var didScroll = false, toastTimer = null;
+
+var now = new Date();
+var todayYm = now.getFullYear() + '-' + pad(now.getMonth() + 1);
+var ui = { tab: 'grid', ym: todayYm };
+var t0 = sGet('localStorage', TAB_KEY); if (t0 === 'grid' || t0 === 'days' || t0 === 'settings') ui.tab = t0;
+var y0 = sGet('sessionStorage', YM_KEY); if (y0 && /^\d{4}-\d{2}$/.test(y0)) ui.ym = y0;
+
+try {
+  var p0 = JSON.parse(sGet('sessionStorage', PENDING_KEY) || 'null');
+  if (p0) { if (p0.updatedAt === saved.updatedAt) { sDel('sessionStorage', PENDING_KEY); justSaved = true; } else pending = p0; }
+} catch(e){}
+
+/* ---- 日付と時間 ---- */
+function ymParts(ym){ return ym.split('-').map(Number); }
+function daysIn(ym){ var p = ymParts(ym); return new Date(p[0], p[1], 0).getDate(); }
+function wday(ym, d){ var p = ymParts(ym); return new Date(p[0], p[1]-1, d).getDay(); }
+function shiftYm(ym, k){ var p = ymParts(ym); var dt = new Date(p[0], p[1]-1+k, 1); return dt.getFullYear() + '-' + pad(dt.getMonth()+1); }
+function ymLabel(ym){ var p = ymParts(ym); return p[0] + '年' + p[1] + '月'; }
+function monthNum(ym){ return ymParts(ym)[1]; }
+function isToday(ym, d){ return ym === todayYm && d === now.getDate(); }
+function toMin(t){ var p = t.split(':').map(Number); return p[0]*60 + p[1]; }
+function spanMin(s, e){ var d = toMin(e) - toMin(s); if (d <= 0) d += 1440; return d; }
+function breakMin(d){ return d > 480 ? 60 : d > 360 ? 45 : 0; }
+function workMin(s, e){ var d = spanMin(s, e); return d - breakMin(d); }
+function hShort(t){ var p = t.split(':').map(Number); return p[1] ? p[0] + ':' + pad(p[1]) : String(p[0]); }
+function fmtH(min){ var h = Math.floor(min/60), m = min % 60; return m ? h + '時間' + m + '分' : h + '時間'; }
+function fmtHs(min){ return String(Math.round(min/6)/10).replace(/\.0$/, '') + 'h'; }
+var TIMES = []; for (var t = 5*60; t <= 24*60; t += 30) TIMES.push(pad(Math.floor(t/60)) + ':' + pad(t % 60));
+
+/* ---- 月のデータ ---- */
+function monthOf(st, ym){ return st.months[ym] || { work:{}, wish:{} }; }
+function ensureMonth(st, ym){ if (!st.months[ym]) st.months[ym] = { work:{}, wish:{} }; return st.months[ym]; }
+function workOf(mo, sid, d){ return mo.work[sid] && mo.work[sid][d]; }
+function wishOf(mo, sid, d){ return !!(mo.wish[sid] && mo.wish[sid].indexOf(d) >= 0); }
+function findS(sid){ for (var i = 0; i < state.staff.length; i++) if (state.staff[i].id === sid) return state.staff[i]; return null; }
+function nameOf(s){ return s.name && s.name.trim() ? s.name : '（名前なし）'; }
+function needOf(ym, d){ return state.settings.need[wday(ym, d)]; }
+function dayCount(mo, d){ return state.staff.filter(function(s){ return workOf(mo, s.id, d); }).length; }
+function staffStats(mo, ym, s){
+  var n = daysIn(ym), days = 0, min = 0, run = 0, maxRun = 0, clash = 0;
+  for (var d = 1; d <= n; d++) {
+    var w = workOf(mo, s.id, d);
+    if (w) { days++; min += workMin(w[0], w[1]); run++; if (run > maxRun) maxRun = run; if (wishOf(mo, s.id, d)) clash++; }
+    else run = 0;
+  }
+  return { days: days, min: min, maxRun: maxRun, clash: clash, over: s.maxHours ? min > s.maxHours*60 : false };
+}
+
+/* ---- 自動で作る ---- */
+function autoFill(st, ym){
+  var mo = ensureMonth(st, ym), n = daysIn(ym), staff = st.staff;
+  mo.work = {};
+  var mins = {}, run = {}, cnt = {};
+  staff.forEach(function(s){ mins[s.id] = 0; run[s.id] = 0; cnt[s.id] = 0; });
+  for (var d = 1; d <= n; d++) {
+    var w = wday(ym, d), need = st.settings.need[w];
+    var cands = staff.filter(function(s){
+      var add = workMin(s.start, s.end);
+      return s.days[w] && !(mo.wish[s.id] && mo.wish[s.id].indexOf(d) >= 0)
+        && run[s.id] < st.settings.maxRun
+        && (!s.maxHours || mins[s.id] + add <= s.maxHours*60);
+    });
+    var rot = function(s){ var i = staff.indexOf(s); return (i - d % staff.length + staff.length) % staff.length; };
+    cands.sort(function(a, b){ return (mins[a.id] - mins[b.id]) || (cnt[a.id] - cnt[b.id]) || (rot(a) - rot(b)); });
+    var picked = {};
+    cands.slice(0, need).forEach(function(s){ picked[s.id] = true; });
+    staff.forEach(function(s){
+      if (picked[s.id]) {
+        if (!mo.work[s.id]) mo.work[s.id] = {};
+        mo.work[s.id][d] = [s.start, s.end];
+        mins[s.id] += workMin(s.start, s.end); cnt[s.id]++; run[s.id]++;
+      } else run[s.id] = 0;
+    });
+  }
+}
+function ensureSample(ym){
+  if (state.sample && !state.months[ym]) {
+    autoFill(state, ym);
+    if (!saved.months[ym]) saved.months[ym] = clone(state.months[ym]);
+  }
+}
+
+/* ---- 画面 ---- */
+function statusPill(){
+  if (cap === 'loading') return '';
+  if (LOCAL) return localOk ? '<span class="pill ok">この端末に保存済み</span>' : '<span class="pill bad">保存できません</span>';
+  if (cap !== 'edit') return '<span class="pill">見るだけ</span>';
+  if (saving) return '<span class="pill warn">保存中…</span>';
+  return dirty ? '<span class="pill warn">未保存</span>' : '<span class="pill ok">保存済み</span>';
+}
+function header(){
+  var tabs = [['grid','予定表'],['days','日ごと'],['settings','設定']].map(function(t){
+    return '<button role="tab" id="tab-' + t[0] + '" data-act="tab" data-tab="' + t[0] + '" aria-selected="' + (ui.tab === t[0]) + '">' + t[1] + '</button>';
+  }).join('');
+  return '<header class="top"><div class="brand"><h1>パート勤務表</h1><span id="status">' + statusPill() + '</span></div>'
+    + '<div class="month"><button class="icon-btn" id="prev" data-act="prev" aria-label="前の月">‹</button><h2>' + ymLabel(ui.ym) + '</h2><button class="icon-btn" id="next" data-act="next" aria-label="次の月">›</button></div>'
+    + '<div class="tabs" role="tablist">' + tabs + '</div></header>';
+}
+function notices(){
+  var h = '', editable = cap === 'edit';
+  if (LOCAL && !localOk) {
+    h += '<div class="notice bad"><p><b>この端末に保存できません。</b>プライベートモード（履歴を残さない設定）などでは保存できません。ページを閉じると、変更は消えます。</p></div>';
+  }
+  if (pending && editable) {
+    h += '<div class="notice bad"><p><b>あなたが保存する前に、ほかの人が先に保存しました。</b>あなたの変更はまだ保存されていません。</p>'
+      + '<div class="row"><button class="btn primary" data-act="pend-use">自分の変更で保存する</button><button class="btn" data-act="pend-drop">自分の変更を捨てる</button></div></div>';
+  }
+  if (state.sample) {
+    h += '<div class="notice"><p><b>これは見本です。</b>全員「毎日 9:00〜17:00」、1日2人の仮の設定で作りました。'
+      + (editable ? '「設定」で名前・働ける曜日・時間・休み希望を直してから、「予定表」の「自動で作る」を押してください。' : '')
+      + (LOCAL ? '<br>変更は、この端末（このケータイのブラウザ）の中に自動で保存されます。ほかの人や別の端末には見えません。' : '') + '</p></div>';
+  }
+  if (cap === 'view') {
+    if (viewWhy === 'outside') h += '<div class="notice plain"><p><b>今は見るだけです。</b>このページは、claude.ai にログインして開いたときだけ編集できます。'
+      + '<a href="https://claude.ai/artifact/BDggk9p4n8oPJjFmTUt2Xd" target="_blank" rel="noopener">claude.ai で開く</a></p></div>';
+    else h += '<div class="notice plain"><p><b>見るだけの権限で開いています。</b>編集したいときは、持ち主に「共有」から「編集できる」で招待してもらってください。</p></div>';
+  }
+  return h;
+}
+function summary(mo){
+  var ym = ui.ym, n = daysIn(ym), short = 0, clash = 0, longRun = 0, over = 0;
+  for (var d = 1; d <= n; d++) if (dayCount(mo, d) < needOf(ym, d)) short++;
+  state.staff.forEach(function(s){ var st = staffStats(mo, ym, s); clash += st.clash; if (st.maxRun > state.settings.maxRun) longRun++; if (st.over) over++; });
+  var c = [];
+  c.push(short ? '<span class="chip bad">人が足りない日 ' + short + '日</span>' : '<span class="chip">毎日の人数は足りています</span>');
+  if (clash) c.push('<span class="chip bad">休み希望の日に勤務 ' + clash + '件</span>');
+  if (longRun) c.push('<span class="chip warn">' + state.settings.maxRun + '日より長い連勤 ' + longRun + '人</span>');
+  if (over) c.push('<span class="chip warn">月の上限を超える人 ' + over + '人</span>');
+  return '<div class="chips">' + c.join('') + '</div>';
+}
+function legend(){
+  return '<div class="legend"><span><i class="sw w"></i>勤務（上が始まり・下が終わりの時刻）</span><span><i class="sw wish"></i>希＝休み希望</span>'
+    + '<span><i class="sw clash"></i>休み希望の日に勤務</span><span><i class="sw short"></i>人が足りない</span></div>';
+}
+function gridView(mo){
+  var ym = ui.ym, n = daysIn(ym), editable = cap === 'edit', h = summary(mo), d;
+  h += '<div class="toolbar">';
+  if (editable) {
+    if (confirmAuto) h += '<div class="confirm"><span>この月の勤務を消して、作り直します。休み希望はそのまま残ります。</span><button class="btn primary" id="auto-yes" data-act="auto-yes">作り直す</button><button class="btn" data-act="auto-no">やめる</button></div>';
+    else h += '<button class="btn primary" id="auto" data-act="auto">自動で作る</button><p class="hint">マスを押すと、勤務・休み・休み希望を変えられます。</p>';
+  } else h += '<p class="hint">表は左右に動かせます。</p>';
+  h += '</div>';
+  if (!state.staff.length) return h + '<div class="empty">まだスタッフがいません。「設定」でスタッフを追加してください。</div>';
+  h += '<div class="grid-wrap" id="gridwrap"><table class="grid"><thead><tr><th class="name corner" scope="col">名前</th>';
+  for (d = 1; d <= n; d++) {
+    var w = wday(ym, d);
+    h += '<th scope="col" class="day' + (w === 6 ? ' sat' : w === 0 ? ' sun' : '') + (isToday(ym, d) ? ' today-col' : '') + '"><b>' + d + '</b><span>' + WD[w] + '</span></th>';
+  }
+  h += '</tr></thead><tbody>';
+  state.staff.forEach(function(s){
+    var st = staffStats(mo, ym, s);
+    h += '<tr><th class="name" scope="row"><span class="nm">' + esc(nameOf(s)) + '</span><span class="sum">' + st.days + '日・' + fmtHs(st.min) + (st.over ? ' <em>上限超え</em>' : '') + '</span></th>';
+    for (var d2 = 1; d2 <= n; d2++) {
+      var wk = workOf(mo, s.id, d2), wi = wishOf(mo, s.id, d2);
+      var cls = wk ? (wi ? 'clash' : 'w') : (wi ? 'wish' : 'off');
+      var inner = wk ? '<span>' + hShort(wk[0]) + '</span><span>' + hShort(wk[1]) + '</span>' : (wi ? '希' : '休');
+      var label = nameOf(s) + ' ' + monthNum(ym) + '月' + d2 + '日 ' + (wk ? hShort(wk[0]) + '時から' + hShort(wk[1]) + '時' : '休み') + (wi ? '（休み希望）' : '');
+      h += '<td class="cell ' + cls + '"><button data-act="cell" data-sid="' + esc(s.id) + '" data-d="' + d2 + '" aria-label="' + esc(label) + '"' + (editable ? '' : ' disabled') + '>' + inner + '</button></td>';
+    }
+    h += '</tr>';
+  });
+  h += '</tbody><tfoot><tr><th class="name" scope="row"><span class="nm">人数</span><span class="sum">いる／必要</span></th>';
+  for (d = 1; d <= n; d++) { var c = dayCount(mo, d), nd = needOf(ym, d); h += '<td class="cnt' + (c < nd ? ' short' : '') + '">' + c + '/' + nd + '</td>'; }
+  h += '</tr></tfoot></table></div>' + legend();
+  return h;
+}
+function daysView(mo){
+  var ym = ui.ym, n = daysIn(ym), h = summary(mo) + '<ul class="days">';
+  for (var d = 1; d <= n; d++) {
+    var w = wday(ym, d), c = dayCount(mo, d), nd = needOf(ym, d);
+    var ppl = state.staff.filter(function(s){ return workOf(mo, s.id, d); }).map(function(s){
+      var t = workOf(mo, s.id, d);
+      return '<span class="person' + (wishOf(mo, s.id, d) ? ' clash' : '') + '">' + esc(nameOf(s)) + ' <small>' + hShort(t[0]) + '–' + hShort(t[1]) + '</small></span>';
+    }).join('');
+    var wishes = state.staff.filter(function(s){ return wishOf(mo, s.id, d) && !workOf(mo, s.id, d); }).map(function(s){ return esc(nameOf(s)); }).join('、');
+    h += '<li class="' + (c < nd ? 'short ' : '') + (isToday(ym, d) ? 'today' : '') + '"><div class="dnum' + (w === 6 ? ' sat' : w === 0 ? ' sun' : '') + '"><b>' + d + '</b><span>' + WD[w] + '</span></div>'
+      + '<div class="ppl">' + (ppl || '<span class="none">勤務の人がいません</span>') + (wishes ? '<span class="wishline">休み希望：' + wishes + '</span>' : '') + '</div>'
+      + '<span class="cntb">' + c + '/' + nd + '人</span></li>';
+  }
+  return h + '</ul>';
+}
+function timeSel(id, ch, sid, val, dis){
+  return '<select id="' + id + '" data-ch="' + ch + '"' + (sid ? ' data-sid="' + esc(sid) + '"' : '') + dis + ' aria-label="' + (ch.indexOf('end') >= 0 ? '終わりの時刻' : '始まりの時刻') + '">'
+    + TIMES.map(function(t){ return '<option value="' + t + '"' + (t === val ? ' selected' : '') + '>' + (+t.slice(0, 2)) + ':' + t.slice(3) + '</option>'; }).join('') + '</select>';
+}
+function miniCal(mo, ym, s, dis){
+  var n = daysIn(ym), first = wday(ym, 1), h = '<div class="mini">';
+  WD.forEach(function(l, w){ h += '<span class="h' + (w === 0 ? ' sun' : w === 6 ? ' sat' : '') + '">' + l + '</span>'; });
+  for (var i = 0; i < first; i++) h += '<span></span>';
+  for (var d = 1; d <= n; d++) h += '<button data-act="wish" data-sid="' + esc(s.id) + '" data-d="' + d + '" aria-pressed="' + wishOf(mo, s.id, d) + '" aria-label="' + d + '日を休み希望にする"' + dis + '>' + d + '</button>';
+  return h + '</div>';
+}
+function stepper(kind, w, label, val, dis, cls){
+  return '<div class="step"><span class="lbl ' + (cls || '') + '">' + label + '</span><div class="stepctl">'
+    + '<button data-act="' + kind + '" data-w="' + w + '" data-delta="-1" aria-label="' + label + 'を1減らす"' + dis + '>−</button><b>' + val + '</b>'
+    + '<button data-act="' + kind + '" data-w="' + w + '" data-delta="1" aria-label="' + label + 'を1増やす"' + dis + '>＋</button></div></div>';
+}
+function settingsView(mo){
+  var ym = ui.ym, editable = cap === 'edit', dis = editable ? '' : ' disabled', mn = monthNum(ym);
+  var h = '<section class="sec"><h3>スタッフ</h3><p class="hint">名前はいつでも変えられます。休み希望は、上で選んでいる月（' + ymLabel(ym) + '）の分です。</p><div class="staff-grid">';
+  state.staff.forEach(function(s){
+    var st = staffStats(mo, ym, s), id = esc(s.id);
+    h += '<div class="card">'
+      + '<label class="fld"><span class="lbl">名前</span><input type="text" class="name-in" id="nm-' + id + '" data-in="name" data-sid="' + id + '" value="' + esc(s.name) + '" maxlength="20" autocomplete="off"' + dis + '></label>'
+      + '<div class="fld"><span class="lbl">働ける曜日</span><div class="wds">' + WD.map(function(l, w){ return '<button data-act="wd" data-sid="' + id + '" data-w="' + w + '" aria-pressed="' + !!s.days[w] + '" aria-label="' + l + '曜日"' + dis + '>' + l + '</button>'; }).join('') + '</div></div>'
+      + '<div class="fld"><span class="lbl">働ける時間</span><div class="times">' + timeSel('st-' + id, 'start', s.id, s.start, dis) + '<span>〜</span>' + timeSel('en-' + id, 'end', s.id, s.end, dis) + '<span class="hint">実働 ' + fmtH(workMin(s.start, s.end)) + '</span></div></div>'
+      + '<label class="fld"><span class="lbl">1か月の上限（なければ空のまま）</span><span class="times"><input type="number" inputmode="numeric" id="mx-' + id + '" data-in="max" data-sid="' + id + '" min="0" max="400" value="' + (s.maxHours || '') + '" placeholder="なし"' + dis + '> 時間</span></label>'
+      + '<div class="fld"><span class="lbl">' + mn + '月の休み希望（日にちを押す）</span>' + miniCal(mo, ym, s, dis) + '</div>'
+      + '<div class="card-foot"><span class="hint">' + mn + '月の予定：' + st.days + '日・' + fmtH(st.min) + '</span>';
+    if (editable) h += confirmDel === s.id
+      ? '<span class="row"><button class="btn danger" data-act="del-yes" data-sid="' + id + '">消す</button><button class="btn" data-act="del-no">やめる</button></span>'
+      : '<button class="btn ghost" data-act="del" data-sid="' + id + '">この人を消す</button>';
+    h += '</div></div>';
+  });
+  h += '</div>' + (editable ? '<div><button class="btn" id="add" data-act="add">＋ スタッフを追加</button></div>' : '') + '</section>';
+  h += '<section class="sec"><h3>1日に必要な人数</h3><div class="steps">' + WD.map(function(l, w){ return stepper('need', w, l + '曜日', state.settings.need[w], dis, w === 0 ? 'sun' : w === 6 ? 'sat' : ''); }).join('') + '</div></section>';
+  h += '<section class="sec"><h3>連勤の上限</h3><p class="hint">「自動で作る」は、これより長く続けて入れません。</p><div class="steps">' + stepper('run', 0, '続けて働ける日数', state.settings.maxRun, dis) + '</div></section>';
+  h += '<section class="sec"><h3>休憩の決まり</h3><p class="hint">6時間を超えて働く日は45分、8時間を超える日は1時間の休憩を引いて「実働」を計算しています（労働基準法の決まり）。</p></section>';
+  if (LOCAL) h += backupView();
+  return h;
+}
+function dtLabel(iso){
+  var d = new Date(iso); if (isNaN(d.getTime())) return '日時不明';
+  return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日 ' + d.getHours() + ':' + pad(d.getMinutes());
+}
+function backupView(){
+  var last = sGet('localStorage', BACKUP_KEY);
+  var h = '<section class="sec" id="backup"><h3>保存とバックアップ</h3>'
+    + '<p class="hint">このページの内容は、この端末（このケータイのブラウザ）の中に自動で保存されます。ほかの人や別の端末には見えません。'
+    + 'ブラウザの履歴やデータを消すと、内容も消えます。iPhone では、しばらく開かないと消えることもあります。ときどき「バックアップを保存」を押して、ファイルに残してください。</p>';
+  if (impData) h += '<div class="confirm"><span>今の内容を消して、バックアップ（' + esc(dtLabel(impData.updatedAt)) + '・スタッフ' + impData.staff.length + '人）の内容にします。</span>'
+    + '<button class="btn primary" id="imp-yes" data-act="imp-yes">置きかえる</button><button class="btn" data-act="imp-no">やめる</button></div>';
+  else h += '<div class="row"><button class="btn primary" id="export" data-act="export">バックアップを保存</button><label class="btn" for="imp-file">バックアップから戻す</label></div>';
+  h += '<p class="hint">' + (last ? '前回のバックアップ：' + esc(dtLabel(last)) : 'まだバックアップしていません。')
+    + '<br>バックアップのファイルを別の端末や友達に送り、そこで「バックアップから戻す」を押して読み込むと、同じ内容を見られます。</p>';
+  return h + '</section>';
+}
+function sheetView(){
+  var s = findS(sheet.sid); if (!s) return '';
+  var ym = ui.ym, d = sheet.d, w = wday(ym, d), mo = monthOf(state, ym), warns = [];
+  if (sheet.mode === 'work') {
+    if (!s.days[w]) warns.push(WD[w] + '曜日は、働ける曜日に入っていません。');
+    if (sheet.wish) warns.push('この日は休み希望の日です。');
+    var run = 1, k;
+    for (k = d - 1; k >= 1 && workOf(mo, s.id, k); k--) run++;
+    for (k = d + 1; k <= daysIn(ym) && workOf(mo, s.id, k); k++) run++;
+    if (run > state.settings.maxRun) warns.push(run + '日続けて働くことになります（上限 ' + state.settings.maxRun + '日）。');
+    if (s.maxHours) {
+      var cur = workOf(mo, s.id, d), total = staffStats(mo, ym, s).min - (cur ? workMin(cur[0], cur[1]) : 0) + workMin(sheet.s, sheet.e);
+      if (total > s.maxHours*60) warns.push('この月の合計が' + fmtH(total) + 'になり、上限（' + s.maxHours + '時間）を超えます。');
+    }
+  }
+  return '<div class="back" data-act="sheet-bg"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-t">'
+    + '<h3 id="sheet-t">' + esc(nameOf(s)) + '<span>' + monthNum(ym) + '月' + d + '日（' + WD[w] + '）</span></h3>'
+    + '<div class="seg"><button id="mode-work" data-act="mode" data-mode="work" aria-pressed="' + (sheet.mode === 'work') + '">勤務</button><button id="mode-off" data-act="mode" data-mode="off" aria-pressed="' + (sheet.mode === 'off') + '">休み</button></div>'
+    + (sheet.mode === 'work' ? '<div class="times">' + timeSel('sh-s', 'sh-start', '', sheet.s, '') + '<span>〜</span>' + timeSel('sh-e', 'sh-end', '', sheet.e, '') + '<span class="hint">実働 ' + fmtH(workMin(sheet.s, sheet.e)) + '</span></div>' : '')
+    + '<label class="check"><input type="checkbox" id="sh-wish" data-ch="sh-wish"' + (sheet.wish ? ' checked' : '') + '> 休み希望の日にする</label>'
+    + (warns.length ? '<div class="warns">' + warns.map(function(t){ return '<p>' + esc(t) + '</p>'; }).join('') + '</div>' : '')
+    + '<div class="row end"><button class="btn" id="sheet-close" data-act="sheet-close">やめる</button><button class="btn primary" id="sheet-ok" data-act="sheet-ok">決める</button></div></div></div>';
+}
+function render(){
+  ensureSample(ui.ym);
+  var mo = monthOf(state, ui.ym);
+  var gw = document.getElementById('gridwrap'), sx = gw ? gw.scrollLeft : null;
+  var ae = document.activeElement, aeId = ae && ae.id;
+  var body = ui.tab === 'grid' ? gridView(mo) : ui.tab === 'days' ? daysView(mo) : settingsView(mo);
+  document.getElementById('main').innerHTML = '<div class="wrap">' + header() + '<main class="view">' + notices() + body + '</main></div>';
+  var gw2 = document.getElementById('gridwrap');
+  if (gw2) {
+    if (sx !== null) gw2.scrollLeft = sx;
+    else if (!didScroll && ui.ym === todayYm) { var th = gw2.querySelector('.today-col'); if (th) gw2.scrollLeft = Math.max(0, th.offsetLeft - 150); }
+    didScroll = true;
+  }
+  renderBar(); renderSheet();
+  if (aeId && !sheet) { var el = document.getElementById(aeId); if (el && el.focus) { try { el.focus({ preventScroll: true }); } catch(e){} } }
+}
+function renderBar(){
+  var bar = document.getElementById('bar'), st = document.getElementById('status');
+  if (st) st.innerHTML = statusPill();
+  if (cap !== 'edit' || (!dirty && !saving)) { bar.innerHTML = ''; return; }
+  bar.innerHTML = '<div class="savebar"><div class="in"><p>' + (saving ? '保存しています…' : '保存していない変更があります') + '</p>'
+    + (saving ? '' : '<div class="row"><button class="btn" data-act="revert">元に戻す</button><button class="btn primary" id="save" data-act="save">保存する</button></div>') + '</div></div>';
+}
+function renderSheet(){ document.getElementById('sheet').innerHTML = sheet ? sheetView() : ''; }
+function toast(msg){
+  var el = document.getElementById('toast'); el.textContent = msg; el.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(function(){ el.hidden = true; }, 3200);
+}
+
+/* ---- 変更 ---- */
+function change(){ if (LOCAL) { saveLocal(); render(); return; } dirty = true; render(); }
+function markDirty(){
+  if (LOCAL) { saveLocal(); var st = document.getElementById('status'); if (st) st.innerHTML = statusPill(); return; }
+  dirty = true; renderBar();
+}
+/* この端末の中に保存する（claude.ai の外で開いたとき） */
+function saveLocal(){
+  state.sample = false; state.updatedAt = new Date().toISOString();
+  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(state)); localOk = true; } catch(e){ localOk = false; }
+  saved = clone(state);
+}
+function exportData(){
+  var d = new Date(), json = JSON.stringify(state, null, 1);
+  var name = 'parttime-backup-' + d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + '.json';
+  try {
+    var url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    var a = document.createElement('a'); a.href = url; a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 60000);
+  } catch(e){ toast('バックアップを保存できませんでした'); return; }
+  sSet('localStorage', BACKUP_KEY, d.toISOString());
+  render(); toast('バックアップのファイルを保存しました');
+}
+function readImport(input){
+  var f = input.files && input.files[0]; if (!f) return;
+  if (f.size > 5000000) { input.value = ''; toast('ファイルが大きすぎます'); return; }
+  var r = new FileReader();
+  r.onload = function(){
+    var o = null; try { o = JSON.parse(r.result); } catch(e){}
+    if (!okData(o)) { toast('このファイルは読み込めません。「バックアップを保存」で作ったファイルを選んでください。'); return; }
+    impData = normData(o); render();
+    var b = document.getElementById('imp-yes'); if (b) { b.scrollIntoView({ block: 'center' }); b.focus({ preventScroll: true }); }
+  };
+  r.onerror = function(){ toast('ファイルを読めませんでした'); };
+  r.onloadend = function(){ input.value = ''; };
+  r.readAsText(f);
+}
+function openSheet(sid, d){
+  var s = findS(sid); if (!s) return;
+  var mo = monthOf(state, ui.ym), w = workOf(mo, sid, d);
+  sheet = { sid: sid, d: d, mode: w ? 'work' : 'off', s: w ? w[0] : s.start, e: w ? w[1] : s.end, wish: wishOf(mo, sid, d) };
+  renderSheet();
+  var b = document.getElementById(w ? 'mode-work' : 'mode-off'); if (b) b.focus();
+}
+function applySheet(){
+  var mo = ensureMonth(state, ui.ym), sid = sheet.sid, d = sheet.d;
+  if (sheet.mode === 'work') { if (!mo.work[sid]) mo.work[sid] = {}; mo.work[sid][d] = [sheet.s, sheet.e]; }
+  else if (mo.work[sid]) delete mo.work[sid][d];
+  if (!mo.wish[sid]) mo.wish[sid] = [];
+  var i = mo.wish[sid].indexOf(d);
+  if (sheet.wish && i < 0) mo.wish[sid].push(d);
+  if (!sheet.wish && i >= 0) mo.wish[sid].splice(i, 1);
+  sheet = null; change();
+}
+function toggleWish(sid, d){
+  var mo = ensureMonth(state, ui.ym);
+  if (!mo.wish[sid]) mo.wish[sid] = [];
+  var i = mo.wish[sid].indexOf(d);
+  if (i >= 0) mo.wish[sid].splice(i, 1); else mo.wish[sid].push(d);
+}
+function addStaff(){
+  var used = {}; state.staff.forEach(function(s){ used[s.name] = true; });
+  var name = '新しい人';
+  for (var c = 65; c <= 90; c++) { var n = String.fromCharCode(c) + 'さん'; if (!used[n]) { name = n; break; } }
+  state.staff.push({ id: 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name: name, days: [true,true,true,true,true,true,true], start: '09:00', end: '17:00', maxHours: null });
+}
+function removeStaff(sid){
+  state.staff = state.staff.filter(function(s){ return s.id !== sid; });
+  Object.keys(state.months).forEach(function(k){ delete state.months[k].work[sid]; delete state.months[k].wish[sid]; });
+}
+
+/* ---- 保存（このページ自身を新しい版として保存する） ---- */
+function buildDoc(data){
+  var resetEl = null, styles = document.head ? document.head.querySelectorAll('style') : [];
+  for (var i = 0; i < styles.length; i++) if (!styles[i].id) { resetEl = styles[i]; break; }
+  var reset = resetEl ? resetEl.textContent : FALLBACK_RESET;
+  var json = JSON.stringify(data).replace(/</g, '\\u003c');
+  return '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>' + reset + '</style></head><body>'
+    + '<title>' + TITLE + '</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n' + HEAD_LINKS + '\n'
+    + '<style id="app-css">' + CSS_EL.textContent + '</style>\n<div id="app"></div>\n'
+    + '<script type="application/json" id="shift-data">' + json + '<\/script>\n'
+    + '<script id="app-js">' + JS_EL.textContent + '<\/script>\n</body></html>';
+}
+function save(){
+  if (!art || cap !== 'edit' || saving) return;
+  var next = clone(state); next.sample = false; next.updatedAt = new Date().toISOString();
+  sSet('sessionStorage', PENDING_KEY, JSON.stringify(next));
+  sSet('sessionStorage', YM_KEY, ui.ym);
+  saving = true; renderBar();
+  art.publish(buildDoc(next)).then(function(){
+    /* 保存できると、ページが新しい版で読み込み直される */
+  }, function(err){
+    saving = false;
+    var code = err && err.code;
+    if (code === 'conflict') { toast('ほかの人が先に保存しました。読み込み直します…'); return; }
+    sDel('sessionStorage', PENDING_KEY);
+    if (['not_writer','not_granted','consent_required','not_declared','capability_disabled','capability_removed'].indexOf(code) >= 0) {
+      cap = 'view'; viewWhy = (code === 'not_writer') ? 'perm' : 'outside'; toast('このページは見るだけです。変更は保存できません。');
+    } else if (code === 'rate_limited') toast('保存が続きました。少し待ってから、もう一度押してください。');
+    else if (code === 'too_large') toast('データが大きすぎて保存できません。');
+    else toast('保存できませんでした。通信を確かめて、もう一度押してください。');
+    render();
+  });
+}
+
+/* ---- 操作 ---- */
+document.addEventListener('click', function(e){
+  var el = e.target.closest('[data-act]'); if (!el || !$app.contains(el)) return;
+  var act = el.dataset.act, sid = el.dataset.sid, d = +el.dataset.d, w = +el.dataset.w, editable = cap === 'edit';
+  switch (act) {
+    case 'prev': case 'next':
+      ui.ym = shiftYm(ui.ym, act === 'next' ? 1 : -1); sSet('sessionStorage', YM_KEY, ui.ym);
+      confirmAuto = false; confirmDel = null; didScroll = false; render(); break;
+    case 'tab': ui.tab = el.dataset.tab; sSet('localStorage', TAB_KEY, ui.tab); confirmAuto = false; render(); break;
+    case 'cell': if (editable) openSheet(sid, d); break;
+    case 'mode': sheet.mode = el.dataset.mode; renderSheet(); break;
+    case 'sheet-close': sheet = null; renderSheet(); break;
+    case 'sheet-bg': if (e.target === el) { sheet = null; renderSheet(); } break;
+    case 'sheet-ok': applySheet(); break;
+    case 'auto':
+      if (!editable) break;
+      var mo = monthOf(state, ui.ym), has = Object.keys(mo.work).some(function(k){ return Object.keys(mo.work[k]).length; });
+      if (has) { confirmAuto = true; render(); } else { autoFill(state, ui.ym); change(); toast(ymLabel(ui.ym) + 'の予定を作りました'); }
+      break;
+    case 'auto-yes': confirmAuto = false; autoFill(state, ui.ym); change(); toast(ymLabel(ui.ym) + 'の予定を作り直しました'); break;
+    case 'auto-no': confirmAuto = false; render(); break;
+    case 'wd': if (editable) { var s = findS(sid); s.days[w] = !s.days[w]; change(); } break;
+    case 'wish': if (editable) { toggleWish(sid, d); change(); } break;
+    case 'need': if (editable) { state.settings.need[w] = clamp(state.settings.need[w] + (+el.dataset.delta), 0, 20); change(); } break;
+    case 'run': if (editable) { state.settings.maxRun = clamp(state.settings.maxRun + (+el.dataset.delta), 1, 31); change(); } break;
+    case 'add': if (editable) { addStaff(); change(); } break;
+    case 'del': confirmDel = sid; render(); break;
+    case 'del-no': confirmDel = null; render(); break;
+    case 'del-yes': if (editable) { removeStaff(sid); confirmDel = null; change(); } break;
+    case 'save': save(); break;
+    case 'revert': state = clone(saved); dirty = false; sheet = null; confirmAuto = false; confirmDel = null; render(); break;
+    case 'pend-use': state = clone(pending); pending = null; sDel('sessionStorage', PENDING_KEY); dirty = true; render(); save(); break;
+    case 'pend-drop': pending = null; sDel('sessionStorage', PENDING_KEY); render(); break;
+    case 'export': if (LOCAL) exportData(); break;
+    case 'imp-yes':
+      if (LOCAL && impData) { state = clone(impData); impData = null; sheet = null; confirmAuto = false; confirmDel = null; saveLocal(); render(); toast('バックアップから戻しました'); }
+      break;
+    case 'imp-no': impData = null; render(); break;
+  }
+});
+document.addEventListener('change', function(e){
+  var el = e.target, k = el.dataset.ch, sid = el.dataset.sid;
+  if (!$app.contains(el)) return;
+  if (el.id === 'imp-file') { if (LOCAL) readImport(el); return; }
+  if ((k === 'start' || k === 'end') && cap === 'edit') { findS(sid)[k] = el.value; change(); }
+  else if (k === 'sh-start' && sheet) { sheet.s = el.value; renderSheet(); }
+  else if (k === 'sh-end' && sheet) { sheet.e = el.value; renderSheet(); }
+  else if (k === 'sh-wish' && sheet) { sheet.wish = el.checked; renderSheet(); }
+  else if (el.dataset.in === 'max' && cap === 'edit') { var v = parseInt(el.value, 10); findS(sid).maxHours = v > 0 ? v : null; change(); }
+});
+document.addEventListener('input', function(e){
+  var el = e.target;
+  if (el.dataset && el.dataset.in === 'name' && cap === 'edit') { findS(el.dataset.sid).name = el.value; markDirty(); }
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && sheet) { sheet = null; renderSheet(); } });
+
+/* ---- はじめ ---- */
+$app.innerHTML = '<div id="main"></div><div id="bar"></div><div id="sheet"></div><div id="toast" class="toast" role="status" hidden></div>'
+  + '<input type="file" id="imp-file" class="vh" tabindex="-1" aria-label="バックアップのファイルを選ぶ">';
+render();
+if (justSaved) toast('保存しました');
+/* 同じ端末の別のタブで変えたときは、こちらにも反映する */
+window.addEventListener('storage', function(e){
+  if (!LOCAL || e.key !== LOCAL_KEY || !e.newValue) return;
+  try { var o = JSON.parse(e.newValue); if (okData(o)) { saved = normData(o); state = clone(saved); sheet = null; render(); } } catch(err){}
+});
+(function(){
+  function setView(why){ cap = 'view'; viewWhy = why; render(); }
+  if (LOCAL) {
+    try { localStorage.setItem('parttime-test', '1'); localStorage.removeItem('parttime-test'); } catch(e){ localOk = false; }
+    cap = 'edit'; render();
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function(){}); } catch(e){}
+    return;
+  }
+  var c = window.claude;
+  if (!c || typeof c.use !== 'function') { setView('outside'); return; }
+  Promise.all([c.use('artifact'), c.use('user')]).then(function(r){
+    art = r[0];
+    var u = r[1];
+    if (!art) { setView('outside'); return; }
+    if (!u) { cap = 'edit'; render(); return; }
+    /* 持ち主・編集できる人・ページを書きかえられる人、のどれかなら編集できる */
+    return Promise.all([
+      u.isOwner(),
+      u.canEdit(),
+      typeof u.can === 'function' ? u.can('files.write') : null
+    ]).then(function(a){
+      if (a[0] || a[1] || a[2] === true) { cap = 'edit'; render(); }
+      else setView('perm');
+    });
+  }).catch(function(){ setView('outside'); });
+})();
+})();
+</script>
+</body>
+</html>
